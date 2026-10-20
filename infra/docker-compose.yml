@@ -1,0 +1,142 @@
+name: collab-platform
+
+services:
+  postgres:
+    image: postgres:18.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env first}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env first}
+      POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env first}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 18 moved the image's volume to /var/lib/postgresql.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    stop_grace_period: 30s
+
+  redis:
+    image: redis:8.10.2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  judge0-db:
+    image: postgres:16.14
+    profiles: [runner]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: judge0
+      POSTGRES_DB: judge0
+      POSTGRES_PASSWORD: ${JUDGE0_POSTGRES_PASSWORD:-}
+    volumes:
+      - judge0_data:/var/lib/postgresql/data
+    networks: [runner]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U judge0 -d judge0"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  judge0-redis:
+    image: redis:8.10.2
+    profiles: [runner]
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${JUDGE0_REDIS_PASSWORD:-}
+    command:
+      [
+        sh,
+        -c,
+        'exec redis-server --appendonly no --requirepass "$$REDIS_PASSWORD"',
+      ]
+    networks: [runner]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  judge0:
+    image: judge0/judge0:1.13.1
+    profiles: [runner]
+    restart: unless-stopped
+    privileged: true
+    # Judge0 isolate requires privileged Linux containers and cgroup v1.
+    # Use a dedicated execution host outside local development.
+    volumes:
+      - ./judge0.conf:/api/judge0.conf:ro
+    environment: &judge0-environment
+      AUTHN_TOKEN: ${JUDGE0_AUTH_TOKEN:-}
+      POSTGRES_HOST: judge0-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: ${JUDGE0_POSTGRES_PASSWORD:-}
+      REDIS_HOST: judge0-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${JUDGE0_REDIS_PASSWORD:-}
+    ports:
+      - "127.0.0.1:${JUDGE0_PORT:-2358}:2358"
+    networks: [runner]
+    depends_on:
+      judge0-db:
+        condition: service_healthy
+      judge0-redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          'curl --fail --silent -H "X-Auth-Token: $$AUTHN_TOKEN" http://127.0.0.1:2358/languages > /dev/null',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  judge0-workers:
+    image: judge0/judge0:1.13.1
+    profiles: [runner]
+    restart: unless-stopped
+    privileged: true
+    command: [./scripts/workers]
+    volumes:
+      - ./judge0.conf:/api/judge0.conf:ro
+    environment: *judge0-environment
+    networks: [runner]
+    depends_on:
+      judge0:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  postgres_data:
+  redis_data:
+  judge0_data:
+
+networks:
+  runner:
+    internal: true
