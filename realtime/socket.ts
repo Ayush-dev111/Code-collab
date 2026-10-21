@@ -1,6 +1,6 @@
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
-import { chatUserSelection, getDatabase, serializeChatMessage } from "@/lib/db";
+import { getDatabase, serializeChatMessage } from "@/lib/db";
 import { consumeRateLimit, RateLimitError } from "@/lib/rate-limit";
 import type {
   ClientToServerEvents,
@@ -164,7 +164,8 @@ export function createSocketServer(httpServer: HttpServer, origin: string) {
           clientMessageId: message.clientMessageId,
           body: message.body,
         },
-        include: { user: { select: chatUserSelection } },
+        // The author is already known, so skip the join: one round trip.
+        select: { id: true, projectId: true, body: true, createdAt: true },
       });
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
@@ -176,7 +177,7 @@ export function createSocketServer(httpServer: HttpServer, origin: string) {
             clientMessageId: message.clientMessageId,
           },
         },
-        include: { user: { select: chatUserSelection } },
+        select: { id: true, projectId: true, body: true, createdAt: true },
       });
       if (
         !row ||
@@ -192,7 +193,7 @@ export function createSocketServer(httpServer: HttpServer, origin: string) {
         };
       created = false;
     }
-    const saved = serializeChatMessage(row);
+    const saved = serializeChatMessage({ ...row, user: data.user });
     if (created) io.to(room(message.projectId)).emit("chat:message", saved);
     return { ok: true, message: saved };
   }

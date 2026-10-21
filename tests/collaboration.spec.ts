@@ -14,11 +14,11 @@ test("two editors converge, a network drop loses no text, and a viewer receives 
   if (!baseURL) throw new Error("Missing test URL");
   const origin = baseURL;
   const db = getDatabase();
-  const prefix = `phase8-browser-${process.env.COLLAB_E2E_PREFIX}-${randomUUID()}`;
+  const prefix = `e2e-${randomUUID()}`;
   const emails = ["owner", "editor"].map(
     (role) => `${prefix}-${role}@example.test`,
   );
-  const password = `Phase8-${randomBytes(24).toString("hex")}`;
+  const password = `E2e-${randomBytes(24).toString("hex")}`;
   const contexts: BrowserContext[] = [];
   const projectIds: string[] = [];
   const errors: string[] = [];

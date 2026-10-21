@@ -1,39 +1,34 @@
+import { existsSync } from "node:fs";
 import { defineConfig } from "@playwright/test";
-import { resolve } from "node:path";
-const baseURL = process.env.COLLAB_E2E_BASE_URL;
-if (
-  !baseURL ||
-  !["127.0.0.1", "localhost", "[::1]"].includes(new URL(baseURL).hostname)
-)
-  throw new Error(
-    "Run Playwright through test:phase8 against its isolated local servers.",
-  );
+
+// Tests talk to the database directly for setup and cleanup.
+if (existsSync(".env")) process.loadEnvFile(".env");
+
+const baseURL = process.env.BETTER_AUTH_URL ?? "http://127.0.0.1:3000";
+
 export default defineConfig({
   testDir: "./tests",
-  fullyParallel: false,
+  testIgnore: "unit/**",
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  timeout: 120000,
-  expect: { timeout: 15000 },
-  outputDir: resolve("../../.tools/playwright-results"),
-  reporter: [
-    ["list"],
-    [
-      "html",
-      {
-        outputFolder: resolve("../../.tools/playwright-report"),
-        open: "never",
-      },
-    ],
-  ],
+  timeout: 120_000,
+  expect: { timeout: 15_000 },
+  reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL,
-    browserName: "chromium",
     headless: true,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    launchOptions: process.env.PLAYWRIGHT_CHROME_CHANNEL
-      ? { channel: process.env.PLAYWRIGHT_CHROME_CHANNEL }
-      : {},
+    // Set PLAYWRIGHT_CHANNEL=chrome to use an installed Chrome instead.
+    ...(process.env.PLAYWRIGHT_CHANNEL
+      ? { channel: process.env.PLAYWRIGHT_CHANNEL }
+      : {}),
+  },
+  // Reuses a running `npm run dev`; otherwise starts the production build.
+  webServer: {
+    command: "npm start",
+    url: `${baseURL}/login`,
+    reuseExistingServer: true,
+    timeout: 120_000,
   },
 });

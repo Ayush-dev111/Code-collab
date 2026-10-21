@@ -1,4 +1,4 @@
-name: Collaboration checks
+name: CI
 
 on:
   push:
@@ -24,13 +24,10 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U collab -d collab"
           --health-interval 5s --health-timeout 5s --health-retries 12
-      redis:
-        image: redis:8.10.2
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://collab:ci-only-password@127.0.0.1:5432/collab
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      BETTER_AUTH_SECRET: ci-only-secret-for-an-ephemeral-database-0123456789
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -38,22 +35,18 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24.13.1
-      - uses: pnpm/action-setup@v6.1.0
-        with:
-          version: 12.9.1
-      - run: pnpm install --frozen-lockfile
-      - run: node scripts/create-ci-env.mjs
-      - run: pnpm db:migrate:deploy
-      - run: pnpm build
-      - run: pnpm lint && pnpm typecheck && pnpm format:check
-      - run: pnpm test:monitoring
-      - run: pnpm test:phase6 && pnpm test:phase7 && pnpm test:phase3:storage
-      - run: pnpm --filter @collab/web exec playwright install --with-deps chromium
-      - run: pnpm test:phase8
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npm run lint && npm run typecheck && npm run format:check
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
       - uses: actions/upload-artifact@v7.0.2
         if: failure()
         with:
-          name: playwright-failure-report
-          path: .tools/playwright-report
+          name: playwright-report
+          path: playwright-report
           if-no-files-found: ignore
           retention-days: 7
