@@ -8,10 +8,10 @@ import {
 import { ApiError } from "./api";
 import { requireRole } from "./permissions";
 import { acquireRunLease } from "./run-limits";
-import { spawn } from "node:child_process";
 import {
   readSubmission,
   resultFields,
+  runnerConfiguration,
   submitCode,
   tryRunnerConfiguration,
   waitForSubmission,
@@ -49,217 +49,6 @@ async function requireCodeItem(projectId: string, itemId: string) {
   return item;
 }
 
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
-
-const PISTON_LANGUAGE_MAP: Record<string, string> = {
-  javascript: "javascript",
-  python: "python",
-  cpp: "c++",
-  java: "java",
-  c: "c",
-  typescript: "typescript",
-  csharp: "csharp",
-  go: "go",
-  rust: "rust",
-  ruby: "ruby",
-  php: "php",
-  swift: "swift",
-  kotlin: "kotlin",
-};
-
-interface PistonExecutionResult {
-  stdout?: string;
-  stderr?: string;
-  output?: string;
-  code?: number | null;
-  signal?: string | null;
-}
-
-interface PistonResponse {
-  language?: string;
-  version?: string;
-  run?: PistonExecutionResult;
-  compile?: PistonExecutionResult;
-  message?: string;
-}
-
-async function runViaPiston(input: RunInput) {
-  const pistonLang = PISTON_LANGUAGE_MAP[input.language] || input.language;
-  const startTime = Date.now();
-  const response = await fetch("https://emkc.org/api/v2/piston/execute", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      language: pistonLang,
-      version: "*",
-      files: [{ content: input.sourceCode }],
-      stdin: input.stdin || "",
-    }),
-    signal: AbortSignal.timeout(25_000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Piston API returned status ${response.status}`);
-  }
-
-  const data = (await response.json()) as PistonResponse;
-  const durationMs = Date.now() - startTime;
-
-  if (data.compile && data.compile.code != null && data.compile.code !== 0) {
-    return {
-      status: "FAILED" as const,
-      statusLabel: "Compilation Error",
-      judge0Status: 6,
-      stdout: data.compile.stdout || null,
-      stderr: data.compile.stderr || data.compile.output || null,
-      compileOutput: data.compile.output || data.compile.stderr || null,
-      exitCode: data.compile.code,
-      durationMs,
-      outputTruncated: false,
-      finishedAt: new Date(),
-    };
-  }
-
-  const runResult = data.run;
-  const isSuccess = runResult?.code === 0;
-
-  return {
-    status: isSuccess ? ("FINISHED" as const) : ("FAILED" as const),
-    statusLabel: isSuccess ? "Accepted" : "Runtime Error",
-    judge0Status: isSuccess ? 3 : 11,
-    stdout: runResult?.stdout || null,
-    stderr: runResult?.stderr || runResult?.output || null,
-    compileOutput: null,
-    exitCode: runResult?.code ?? 0,
-    durationMs,
-    outputTruncated: false,
-    finishedAt: new Date(),
-  };
-}
-
-async function executeLocally(input: RunInput) {
-  const startTime = Date.now();
-  let cmd: string;
-  let args: string[];
-  let tempFilePath: string | null = null;
-
-  if (input.language === "javascript") {
-    cmd = process.execPath;
-    args = ["-e", input.sourceCode];
-  } else if (input.language === "python") {
-    cmd = "python";
-    args = ["-c", input.sourceCode];
-  } else if (input.language === "java") {
-    const tempDir = os.tmpdir();
-    tempFilePath = path.join(
-      tempDir,
-      `Run_${Date.now()}_${Math.random().toString(36).slice(2)}.java`,
-    );
-    try {
-      await fs.promises.writeFile(tempFilePath, input.sourceCode, "utf8");
-    } catch (err) {
-      return {
-        status: "FAILED" as const,
-        statusLabel: "Write error",
-        judge0Status: 13,
-        stdout: null,
-        stderr: err instanceof Error ? err.message : "Failed to create source file.",
-        compileOutput: null,
-        exitCode: 1,
-        durationMs: 0,
-        outputTruncated: false,
-        finishedAt: new Date(),
-      };
-    }
-    cmd = "java";
-    args = [tempFilePath];
-  } else {
-    return {
-      status: "FAILED" as const,
-      statusLabel: "Language unavailable",
-      judge0Status: 13,
-      stdout: null,
-      stderr: `Running ${input.language} locally without Docker/Judge0 is not supported. Supported local languages are JavaScript, Python, and Java.`,
-      compileOutput: null,
-      exitCode: 1,
-      durationMs: 0,
-      outputTruncated: false,
-      finishedAt: new Date(),
-    };
-  }
-
-  return new Promise<{
-    status: "FINISHED" | "FAILED";
-    statusLabel: string;
-    judge0Status: number;
-    stdout: string | null;
-    stderr: string | null;
-    compileOutput: string | null;
-    exitCode: number | null;
-    durationMs: number;
-    outputTruncated: boolean;
-    finishedAt: Date;
-  }>((resolve) => {
-    let stdoutData = "";
-    let stderrData = "";
-    const proc = spawn(cmd, args, { timeout: 15_000 });
-
-    if (input.stdin) {
-      proc.stdin?.write(input.stdin);
-      proc.stdin?.end();
-    }
-
-    proc.stdout?.on("data", (chunk: Buffer) => {
-      stdoutData += chunk.toString("utf8");
-    });
-
-    proc.stderr?.on("data", (chunk: Buffer) => {
-      stderrData += chunk.toString("utf8");
-    });
-
-    const cleanup = () => {
-      if (tempFilePath) {
-        fs.promises.unlink(tempFilePath).catch(() => undefined);
-      }
-    };
-
-    proc.on("error", (err) => {
-      cleanup();
-      resolve({
-        status: "FAILED",
-        statusLabel: "Execution error",
-        judge0Status: 13,
-        stdout: null,
-        stderr: err.message,
-        compileOutput: null,
-        exitCode: 1,
-        durationMs: Date.now() - startTime,
-        outputTruncated: false,
-        finishedAt: new Date(),
-      });
-    });
-
-    proc.on("close", (code) => {
-      cleanup();
-      const durationMs = Date.now() - startTime;
-      resolve({
-        status: code === 0 ? "FINISHED" : "FAILED",
-        statusLabel: code === 0 ? "Accepted" : "Runtime Error",
-        judge0Status: code === 0 ? 3 : 11,
-        stdout: stdoutData || null,
-        stderr: stderrData || null,
-        compileOutput: null,
-        exitCode: code,
-        durationMs,
-        outputTruncated: false,
-        finishedAt: new Date(),
-      });
-    });
-  });
-}
-
 export async function executeRun(input: RunInput, requestHeaders: Headers) {
   const { session } = await requireRole(
     input.projectId,
@@ -273,26 +62,13 @@ export async function executeRun(input: RunInput, requestHeaders: Headers) {
       "LANGUAGE_CHANGED",
       "The file's language changed. Wait for it to sync before running.",
     );
-  const configuration = tryRunnerConfiguration();
-  const release = configuration
-    ? await acquireRunLease(
-        configuration,
-        session.user.id,
-        input.projectId,
-        input.itemId,
-      )
-    : process.env.REDIS_URL
-      ? await acquireRunLease(
-          {
-            REDIS_URL: process.env.REDIS_URL,
-            JUDGE0_URL: "http://127.0.0.1:2358/",
-            JUDGE0_AUTH_TOKEN: "01234567890123456789012345678901",
-          },
-          session.user.id,
-          input.projectId,
-          input.itemId,
-        )
-      : async () => undefined;
+  const configuration = runnerConfiguration();
+  const release = await acquireRunLease(
+    configuration,
+    session.user.id,
+    input.projectId,
+    input.itemId,
+  );
   try {
     const database = getDatabase();
     const created = await database.$transaction(async (transaction) => {
@@ -351,25 +127,17 @@ export async function executeRun(input: RunInput, requestHeaders: Headers) {
     });
     let fields;
     try {
-      if (configuration) {
-        const signal = AbortSignal.timeout(30_000);
-        const token = await submitCode(configuration, input, signal);
-        const saved = await database.run.updateMany({
-          where: { id: created.id, status: "RUNNING" },
-          data: { judge0Token: token },
-        });
-        if (!saved.count)
-          throw new ApiError(404, "NOT_FOUND", "This run is unavailable.");
-        fields = resultFields(
-          await waitForSubmission(configuration, token, signal),
-        );
-      } else {
-        try {
-          fields = await runViaPiston(input);
-        } catch {
-          fields = await executeLocally(input);
-        }
-      }
+      const signal = AbortSignal.timeout(30_000);
+      const token = await submitCode(configuration, input, signal);
+      const saved = await database.run.updateMany({
+        where: { id: created.id, status: "RUNNING" },
+        data: { judge0Token: token },
+      });
+      if (!saved.count)
+        throw new ApiError(404, "NOT_FOUND", "This run is unavailable.");
+      fields = resultFields(
+        await waitForSubmission(configuration, token, signal),
+      );
     } catch (error) {
       fields = failedFields(
         error instanceof ApiError
