@@ -1,0 +1,200 @@
+@import "tailwindcss";
+@source "../node_modules/@blocknote/shadcn";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--secondary);
+  --color-accent: var(--secondary);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--primary-foreground);
+  --color-input: var(--border);
+  --color-ring: var(--primary);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-sidebar: var(--sidebar);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-blue: var(--blue);
+  --color-blue-soft: var(--blue-soft);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.5rem;
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif;
+  --font-display:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #1f2328;
+  --card: #ffffff;
+  --sidebar: #f6f8fa;
+  --primary: #1f883d;
+  --primary-foreground: #ffffff;
+  --muted-foreground: #656d76;
+  --border: #d0d7de;
+  --secondary: #f6f8fa;
+  --destructive: #cf222e;
+  --danger-soft: #ffebe9;
+  --success: #1f883d;
+  --success-soft: #dafbe1;
+  --warning: #9a6700;
+  --warning-soft: #fff8c5;
+  --violet: #8250df;
+  --violet-soft: #fbefff;
+  --blue: #0969da;
+  --blue-soft: #ddf4ff;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0d1117;
+  --foreground: #f0f6fc;
+  --card: #161b22;
+  --sidebar: #010409;
+  --primary: #238636;
+  --primary-foreground: #ffffff;
+  --muted-foreground: #8b949e;
+  --border: #30363d;
+  --secondary: #21262d;
+  --destructive: #f85149;
+  --danger-soft: #381014;
+  --success: #238636;
+  --success-soft: #102d18;
+  --warning: #d29922;
+  --warning-soft: #34280f;
+  --violet: #a371f7;
+  --violet-soft: #271d3d;
+  --blue: #58a6ff;
+  --blue-soft: #122c4d;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply m-0 bg-background font-sans text-foreground antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+  button,
+  summary,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled),
+  summary,
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+  .bn-shadcn * {
+    @apply outline-ring/50;
+  }
+}
+
+.workspace-tab {
+  @apply relative inline-flex h-11 shrink-0 items-center justify-center gap-2 border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground;
+}
+.workspace-tab[aria-current="page"],
+.workspace-tab[aria-pressed="true"] {
+  @apply border-[#fd8c73] font-semibold text-foreground dark:border-[#f78166];
+}
+.project-card {
+  @apply rounded-md border border-border bg-card transition-all;
+  box-shadow: 0 1px 0 rgba(27, 31, 36, 0.04);
+}
+.project-card:hover {
+  @apply border-border bg-secondary/30;
+  box-shadow: 0 3px 6px rgba(140, 149, 159, 0.15);
+}
+[data-theme="dark"] .project-card:hover {
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+.dashboard-welcome {
+  @apply rounded-md border border-border bg-card;
+  background:
+    radial-gradient(
+      ellipse at 100% 0%,
+      color-mix(in srgb, var(--blue) 8%, transparent),
+      transparent 70%
+    ),
+    var(--card);
+}
+.auth-art {
+  background:
+    radial-gradient(ellipse at 20% 100%, #161b22 0%, #0d1117 80%), #0d1117;
+}
+
+.collaborative-page .bn-container {
+  min-height: 24rem;
+  background: var(--card);
+}
+
+.collaborative-page .bn-editor {
+  padding-inline: 1.5rem;
+  background: var(--card);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+.collaborative-page .bn-editor h1,
+.collaborative-page .bn-editor h2,
+.collaborative-page .bn-editor h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+
+@media (max-width: 640px) {
+  .collaborative-page .bn-editor {
+    padding-inline: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
