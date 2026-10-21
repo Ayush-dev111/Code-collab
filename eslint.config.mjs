@@ -1,31 +1,29 @@
 import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypeScript from "eslint-config-next/typescript";
-import { strictConfig } from "@collab/config/eslint";
 
 export default defineConfig([
   {
     ignores: [
       "**/node_modules/**",
-      ".tools/**",
-      "**/.next/**",
-      "**/dist/**",
-      "**/.turbo/**",
-      "packages/db/src/generated/**",
-      "**/next-env.d.ts",
+      ".next/**",
+      "lib/generated/**",
+      "next-env.d.ts",
+      "playwright-report/**",
+      "test-results/**",
     ],
   },
-  ...nextVitals.map((config) => ({
-    ...config,
-    files: ["apps/web/**/*.{ts,tsx,js,mjs}"],
-  })),
-  ...nextTypeScript.map((config) => ({
-    ...config,
-    files: ["apps/web/**/*.{ts,tsx}"],
-  })),
-  ...strictConfig,
+  ...nextVitals,
+  ...nextTypeScript,
   {
-    files: ["apps/web/**/*.{ts,tsx,js,mjs}"],
-    settings: { next: { rootDir: "apps/web/" } },
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
+    },
   },
 ]);

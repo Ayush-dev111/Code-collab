@@ -1,5 +1,0 @@
-{
-  "extends": "@collab/config/node.json",
-  "compilerOptions": { "noEmit": true },
-  "include": ["prisma.config.ts", "scripts/**/*.ts"]
-}

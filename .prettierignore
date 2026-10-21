@@ -1,9 +1,8 @@
-pnpm-lock.yaml
+package-lock.json
 node_modules
-.tools
 .next
-.turbo
-dist
-packages/db/src/generated
+lib/generated
+playwright-report
+test-results
 *.docx
 prompt.txt

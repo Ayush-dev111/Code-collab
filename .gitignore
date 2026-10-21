@@ -1,10 +1,8 @@
 node_modules/
-.tools/
 .next/
-.turbo/
-dist/
+next-env.d.ts
 *.tsbuildinfo
-packages/db/src/generated/
+lib/generated/
 .env
 .env.*
 !.env.example
