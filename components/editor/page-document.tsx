@@ -136,6 +136,7 @@ export default function PageDocument({
             user={user}
             projectId={projectId}
             itemId={initialItem.id}
+            title={item.title}
             editable={editable}
           />
         </>

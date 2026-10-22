@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { randomBytes, randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { getDatabase } from "@/lib/db";
 import {
   createdProjectResponseSchema,
@@ -149,6 +150,21 @@ test("two editors converge, a network drop loses no text, and a viewer receives 
       await expect(text(page)).toContainText("AlphaConcurrent");
       await expect(text(page)).toContainText("BravoConcurrent");
     }
+    // Remote cursors show the collaborator's name, not just a coloured caret.
+    const ownerLabel = editor
+      .locator(".bn-collaboration-cursor__label")
+      .filter({ hasText: "Playwright owner" });
+    await expect(ownerLabel).toBeVisible();
+    expect((await ownerLabel.boundingBox())?.width ?? 0).toBeGreaterThan(40);
+    // Pages export to Markdown with everyone's text.
+    const [download] = await Promise.all([
+      owner.waitForEvent("download"),
+      owner.getByRole("button", { name: "Export as Markdown" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("Playwright page.md");
+    const markdown = await readFile(await download.path(), "utf8");
+    expect(markdown).toContain("AlphaConcurrent");
+    expect(markdown).toContain("BravoConcurrent");
     await owner
       .getByLabel("Message your team")
       .fill("Retained offline chat draft");

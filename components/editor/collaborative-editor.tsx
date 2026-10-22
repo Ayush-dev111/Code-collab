@@ -22,17 +22,50 @@ const DefaultBlockNoteView = BlockNoteView as unknown as (props: {
   theme: "light" | "dark";
 }) => ReactElement;
 
+// BlockNote 0.55 only expands a cursor's name label while the cursor has
+// data-active, and its "always" mode never sets it, so draw cursors with the
+// label permanently open.
+function renderCursor(user: { name: string; color: string }) {
+  const cursor = document.createElement("span");
+  cursor.className = "bn-collaboration-cursor__base";
+  cursor.setAttribute("data-active", "");
+  const caret = document.createElement("span");
+  caret.className = "bn-collaboration-cursor__caret";
+  caret.setAttribute("contenteditable", "false");
+  caret.style.backgroundColor = user.color;
+  const label = document.createElement("span");
+  label.className = "bn-collaboration-cursor__label";
+  label.style.backgroundColor = user.color;
+  label.style.color = "white";
+  label.textContent = user.name;
+  caret.append(label);
+  // Word joiners keep the caret from splitting the surrounding word.
+  cursor.append("⁠", caret, "⁠");
+  return cursor;
+}
+
+function download(fileName: string, contents: string, type: string) {
+  const url = URL.createObjectURL(new Blob([contents], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function CollaborativeEditor({
   provider,
   user,
   projectId,
   itemId,
+  title,
   editable,
 }: {
   provider: HocuspocusProvider;
   user: RealtimeUser;
   projectId: string;
   itemId: string;
+  title: string;
   editable: boolean;
 }) {
   const { theme } = useTheme();
@@ -44,6 +77,7 @@ export function CollaborativeEditor({
         provider: provider.awareness ? { awareness: provider.awareness } : {},
         user,
         showCursorLabels: "always",
+        renderCursor,
       },
       uploadFile: async (file: File) => {
         try {
@@ -78,6 +112,21 @@ export function CollaborativeEditor({
   );
   return (
     <div className="collaborative-page">
+      <div className="mb-3 flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            download(
+              `${title.replace(/[\\/:*?"<>|]+/g, "-").trim() || "page"}.md`,
+              editor.blocksToMarkdownLossy(editor.document),
+              "text/markdown;charset=utf-8",
+            )
+          }
+        >
+          Export as Markdown
+        </Button>
+      </div>
       {uploadError && (
         <div
           role="alert"
