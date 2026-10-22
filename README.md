@@ -5,7 +5,7 @@ together, run code, and chat in shared projects.
 
 - **Pages:** BlockNote editor, synced live with Yjs (no merge conflicts).
 - **Code:** Monaco editor with shared cursors; Python, JavaScript, C++ and
-  Java run through Judge0.
+  Java run in the free Paiza.io sandbox.
 - **Chat, presence, sidebar:** Socket.IO.
 - **Accounts and roles:** Better Auth (email, Google, GitHub); projects have
   OWNER, EDITOR and VIEWER members, checked on the server.
@@ -46,14 +46,14 @@ checks depend on it.
 
 ### Optional settings (`.env`)
 
-| Setting                                    | Purpose                                                                                                                                        |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in. Callback: `<BETTER_AUTH_URL>/api/auth/callback/google`                                                                         |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub sign-in. Callback: `<BETTER_AUTH_URL>/api/auth/callback/github`                                                                         |
-| `JUDGE0_URL`, `JUDGE0_API_KEY`             | Code execution, e.g. `https://judge0-ce.p.rapidapi.com` with a RapidAPI key. Without them the Run button reports that execution is not set up. |
-| `PORT`, `HOST`                             | Defaults: `3000`, `127.0.0.1` (dev) / `0.0.0.0` (production).                                                                                  |
+| Setting                                    | Purpose                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in. Callback: `<BETTER_AUTH_URL>/api/auth/callback/google`         |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub sign-in. Callback: `<BETTER_AUTH_URL>/api/auth/callback/github`         |
+| `PAIZA_API_KEY`                            | Optional own key for code execution; the public `guest` key is used otherwise. |
+| `PORT`, `HOST`                             | Defaults: `3000`, `127.0.0.1` (dev) / `0.0.0.0` (production).                  |
 
-User code is only ever sent to Judge0; the app never executes it.
+User code is only ever sent to Paiza.io; the app never executes it.
 
 ## Scripts
 
