@@ -5,7 +5,7 @@ import { ApiError } from "./api";
 import { requireRole } from "./permissions";
 import { consumeRateLimit } from "./rate-limit";
 import { emitToProject } from "./realtime-bus";
-import { executeOnJudge0, judge0Configuration, runFields } from "./judge0";
+import { runCode } from "./code-runner";
 
 const runInclude = { user: { select: { name: true } } } as const;
 type RunRow = Run & { user: { name: string } };
@@ -75,7 +75,6 @@ export async function executeRun(input: RunInput, requestHeaders: Headers) {
       "LANGUAGE_CHANGED",
       "The file's language changed. Wait for it to sync before running.",
     );
-  judge0Configuration();
   consumeRateLimit("run", session.user.id, input.projectId);
   const release = acquireFileLease(input.itemId);
   try {
@@ -99,11 +98,7 @@ export async function executeRun(input: RunInput, requestHeaders: Headers) {
     );
     let fields;
     try {
-      const { token, result } = await executeOnJudge0(
-        input,
-        AbortSignal.timeout(45_000),
-      );
-      fields = { ...runFields(result), judge0Token: token };
+      fields = await runCode(input, AbortSignal.timeout(45_000));
     } catch (error) {
       fields = failedFields(
         error instanceof ApiError

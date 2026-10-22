@@ -3,20 +3,13 @@ import { projectIdSchema } from "./projects";
 import { itemIdSchema } from "./items";
 import { codeStdinSchema } from "./code";
 
-// Judge0 CE single-file runtimes. Syntax highlighting supports more languages;
-// execution only enables these sandbox runtimes.
+// Languages the sandbox can run. Syntax highlighting supports many more.
 export const executableLanguageSchema = z.enum([
   "python",
   "javascript",
   "cpp",
   "java",
 ]);
-export const judge0LanguageIds = {
-  python: 71,
-  javascript: 63,
-  cpp: 54,
-  java: 62,
-} as const;
 export const MAX_SOURCE_BYTES = 64 * 1024;
 export const MAX_RUN_OUTPUT_BYTES = 16 * 1024;
 export const RUN_DEADLINE_MS = 30_000;
@@ -73,24 +66,6 @@ export const runEventSchema = z.strictObject({
   runId: z.cuid(),
   changedAt: z.iso.datetime(),
 });
-export const judge0CreatedSchema = z.object({ token: z.uuid() });
-export const judge0ResultSchema = z.object({
-  status: z.object({
-    id: z.number().int().min(1).max(14),
-    description: z.string().max(200),
-  }),
-  stdout: z.string().max(100_000).nullable().optional(),
-  stderr: z.string().max(100_000).nullable().optional(),
-  compile_output: z.string().max(100_000).nullable().optional(),
-  exit_code: z.number().int().nullable().optional(),
-  time: z
-    .string()
-    .max(32)
-    .regex(/^\d+(\.\d+)?$/)
-    .nullable()
-    .optional(),
-});
 export type RunInput = z.infer<typeof runInputSchema>;
 export type CodeRun = z.infer<typeof runSchema>;
 export type RunEvent = z.infer<typeof runEventSchema>;
-export type Judge0Result = z.infer<typeof judge0ResultSchema>;

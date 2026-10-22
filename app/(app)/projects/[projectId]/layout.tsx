@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { projectParamsSchema, realtimeUser } from "@/lib/shared";
 import { RoomShell } from "@/components/workspace/room-shell";
 import { getProjectDetails } from "@/lib/projects";
+import { listItems } from "@/lib/items";
 import { ApiError } from "@/lib/api";
 import { requireSession } from "@/lib/permissions";
 
@@ -23,10 +24,14 @@ export default async function ProjectLayout({
   const { projectId } = parsed.data;
   let project;
   let session;
+  let items;
   try {
-    [project, session] = await Promise.all([
+    // One round trip: the item list loads alongside the project, so a page
+    // opened directly does not wait for the sidebar to fetch it.
+    [project, session, items] = await Promise.all([
       getProjectDetails(projectId),
       requireSession(),
+      listItems(projectId),
     ]);
   } catch (error) {
     if (error instanceof ApiError && error.status === 401)
@@ -56,6 +61,7 @@ export default async function ProjectLayout({
   return (
     <RoomShell
       initialProject={project}
+      initialItems={items}
       currentUser={realtimeUser(session.user)}
     >
       {children}

@@ -1,7 +1,12 @@
 import type { IncomingHttpHeaders } from "node:http";
 import { getAuth } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
-import { realtimeUser, type RealtimeUser, type Role } from "@/lib/shared";
+import {
+  realtimeUser,
+  roleSchema,
+  type RealtimeUser,
+  type Role,
+} from "@/lib/shared";
 
 // Realtime connections are checked once when they open, not on every message.
 // The browser sends the normal session cookie because the realtime server
@@ -24,55 +29,51 @@ export async function sessionUser(headers: Headers): Promise<RealtimeUser> {
   return realtimeUser(session.user);
 }
 
-// Short-lived caches so opening several documents costs no extra queries.
-const CACHE_MS = 30_000;
-const roles = new Map<string, { role: Role; at: number }>();
-const items = new Map<string, { projectId: string; at: number }>();
-
-function prune<T extends { at: number }>(cache: Map<string, T>) {
-  if (cache.size < 1000) return;
-  const cutoff = Date.now() - CACHE_MS;
-  for (const [key, entry] of cache) if (entry.at < cutoff) cache.delete(key);
-}
-
 export async function projectRole(
   projectId: string,
   userId: string,
 ): Promise<Role> {
-  const key = `${projectId}:${userId}`;
-  const cached = roles.get(key);
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.role;
   const membership = await getDatabase().projectMember.findUnique({
     where: { projectId_userId: { projectId, userId } },
     select: { role: true },
   });
-  if (!membership) {
-    roles.delete(key);
+  if (!membership)
     throw new AccessError("You are not a member of this project.");
-  }
-  roles.set(key, { role: membership.role, at: Date.now() });
-  prune(roles);
   return membership.role;
 }
 
-async function documentProject(itemId: string): Promise<string> {
-  const cached = items.get(itemId);
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.projectId;
-  const item = await getDatabase().item.findFirst({
-    where: { id: itemId, type: { in: ["PAGE", "CODE"] } },
-    select: { projectId: true },
-  });
-  if (!item) throw new AccessError("This document is unavailable.");
-  items.set(itemId, { projectId: item.projectId, at: Date.now() });
-  prune(items);
-  return item.projectId;
-}
-
-export async function authorizeDocument(headers: Headers, itemId: string) {
-  const [user, projectId] = await Promise.all([
-    sessionUser(headers),
-    documentProject(itemId),
-  ]);
-  const role = await projectRole(projectId, user.id);
-  return { user, projectId, role };
+// One query checks that the document exists, finds the user's role in its
+// project and, when the document is not open yet, reads its saved state, so
+// opening a page costs a single database round trip.
+export async function authorizeDocument(
+  headers: Headers,
+  itemId: string,
+  withState: boolean,
+) {
+  const user = await sessionUser(headers);
+  const rows = await getDatabase().$queryRaw<
+    Array<{
+      projectId: string;
+      role: string | null;
+      yjsState: Uint8Array | null;
+    }>
+  >`
+    SELECT i."projectId", m.role::text AS role,
+           CASE WHEN ${withState}::boolean THEN i."yjsState" END AS "yjsState"
+    FROM item i
+    LEFT JOIN project_member m
+      ON m."projectId" = i."projectId" AND m."userId" = ${user.id}
+    WHERE i.id = ${itemId} AND i.type IN ('PAGE', 'CODE')
+  `;
+  const row = rows[0];
+  if (!row) throw new AccessError("This document is unavailable.");
+  const role = roleSchema.safeParse(row.role);
+  if (!role.success)
+    throw new AccessError("You are not a member of this project.");
+  return {
+    user,
+    projectId: row.projectId,
+    role: role.data,
+    state: row.yjsState,
+  };
 }

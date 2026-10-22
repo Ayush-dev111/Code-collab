@@ -47,6 +47,11 @@ export function useDocumentSession(itemId: string) {
       websocketProvider: socket,
       name: realtimeDocumentNameSchema.parse(`item:${itemId}`),
       document,
+      // Gives each provider its own channel on the shared socket. Without it,
+      // closing a provider and reopening the same document (page switches,
+      // React's development double mount) mixes their messages and the new
+      // one never syncs.
+      sessionAwareness: true,
       // The server authenticates with the session cookie; this value is unused.
       token: "session",
       onStatus: ({ status }) =>

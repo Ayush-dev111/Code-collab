@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   hasMinimumRole,
   projectResponseSchema,
   type ProjectDetails,
   type RealtimeUser,
+  type TreeItem,
 } from "@/lib/shared";
 import {
   apiRequest,
@@ -22,6 +23,7 @@ import { InviteProjectButton } from "@/components/projects/invite-dialog";
 import { RoleBadge } from "@/components/projects/role-badge";
 import { MemberList } from "@/components/workspace/member-list";
 import { ProjectTree } from "@/components/tree/project-tree";
+import { itemsQueryKey } from "@/components/tree/tree-utils";
 import { ProjectOnlineList } from "@/components/presence/project-online-list";
 import {
   useProjectRealtime,
@@ -97,13 +99,22 @@ function ProjectSidebar({
 // open while people move between pages.
 export function RoomShell({
   initialProject,
+  initialItems,
   currentUser,
   children,
 }: {
   initialProject: ProjectDetails;
+  initialItems: TreeItem[];
   currentUser: RealtimeUser;
   children: ReactNode;
 }) {
+  const client = useQueryClient();
+  // Seed the item list once, before the sidebar and editor read it.
+  useState(() =>
+    client.setQueryData(itemsQueryKey(initialProject.id), {
+      items: initialItems,
+    }),
+  );
   const params = useParams<{ itemId?: string }>();
   const selectedItemId = params.itemId ?? null;
   const [panel, setPanel] = useState<"files" | "workspace" | "chat">(

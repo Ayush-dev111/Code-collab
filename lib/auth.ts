@@ -3,6 +3,7 @@ import { authEnvironmentSchema } from "@/lib/shared";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { dash } from "@better-auth/infra";
 
 let cachedAuthEnv: ReturnType<typeof authEnvironmentSchema.parse> | undefined;
 export function getAuthEnvironment() {
@@ -61,7 +62,13 @@ function createAuthInstance() {
         maxAge: 10 * 60,
       },
     },
-    plugins: [nextCookies()],
+    plugins: [
+      // Optional hosted Better Auth dashboard (users, sessions, audit logs).
+      ...(environment.BETTER_AUTH_API_KEY
+        ? [dash({ apiKey: environment.BETTER_AUTH_API_KEY })]
+        : []),
+      nextCookies(),
+    ],
   });
 }
 
