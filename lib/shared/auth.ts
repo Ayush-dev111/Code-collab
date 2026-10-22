@@ -13,6 +13,7 @@ export const authEnvironmentSchema = z
     GOOGLE_CLIENT_SECRET: optionalCredential,
     GITHUB_CLIENT_ID: optionalCredential,
     GITHUB_CLIENT_SECRET: optionalCredential,
+    BETTER_AUTH_API_KEY: optionalCredential,
   })
   .superRefine((environment, context) => {
     for (const provider of ["GOOGLE", "GITHUB"] as const) {

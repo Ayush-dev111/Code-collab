@@ -22,6 +22,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@better-auth/infra": "0.4.19",
     "@blocknote/core": "0.55.0",
     "@blocknote/react": "0.55.0",
     "@blocknote/shadcn": "0.55.0",
