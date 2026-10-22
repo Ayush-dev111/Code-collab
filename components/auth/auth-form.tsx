@@ -9,16 +9,13 @@ import { authClient } from "@/lib/auth-client";
 import { errorMessage, useOnline } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SocialSignIn } from "@/components/auth/social-sign-in";
 
 export function AuthForm({
   mode,
   callbackURL,
-  providers,
 }: {
   mode: "login" | "signup";
   callbackURL: string;
-  providers: { google: boolean; github: boolean };
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -189,12 +186,6 @@ export function AuthForm({
                 : "Sign in"}
           </Button>
         </form>
-
-        <SocialSignIn
-          providers={providers}
-          callbackURL={callbackURL}
-          disabled={pending}
-        />
       </div>
 
       <div className="mt-4 rounded-md border border-border bg-card p-4 text-center text-xs text-muted-foreground shadow-xs">

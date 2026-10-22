@@ -1,5 +1,4 @@
 import { AuthForm } from "@/components/auth/auth-form";
-import { getAuthProviderAvailability } from "@/lib/auth";
 import { safeReturnPath } from "@/lib/shared";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +12,5 @@ export default async function LoginPage({
   const callbackURL = safeReturnPath(
     typeof params.callbackURL === "string" ? params.callbackURL : undefined,
   );
-  return (
-    <AuthForm
-      mode="login"
-      callbackURL={callbackURL}
-      providers={getAuthProviderAvailability()}
-    />
-  );
+  return <AuthForm mode="login" callbackURL={callbackURL} />;
 }
